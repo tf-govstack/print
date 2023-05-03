@@ -91,6 +91,10 @@ import io.mosip.print.util.TemplateGenerator;
 import io.mosip.print.util.Utilities;
 import io.mosip.print.util.WebSubSubscriptionHelper;
 import io.mosip.vercred.CredentialsVerifier;
+import io.mosip.vercred.exception.ProofDocumentNotFoundException;
+import io.mosip.vercred.exception.ProofTypeNotFoundException;
+import io.mosip.vercred.exception.PubicKeyNotFoundException;
+import io.mosip.vercred.exception.UnknownException;
 
 @Service
 public class PrintServiceImpl implements PrintService{
@@ -202,10 +206,19 @@ public class PrintServiceImpl implements PrintService{
 			printLogger.debug("vc is printed security valuation.... : {}",decodedCredential);
 			if (verifyCredentialsFlag){
 				printLogger.info("Configured received credentials to be verified. Flag {}", verifyCredentialsFlag);
-				boolean verified = credentialsVerifier.verifyCredentials(decodedCredential);
-				if (!verified) {
+				try {
+					boolean verified = credentialsVerifier.verifyPrintCredentials(decodedCredential);
+					if (!verified) {
+						printLogger.error("Received Credentials failed in verifiable credential verify method. So, the credentials will not be printed." +
+								" Id: {}, Transaction Id: {}", eventModel.getEvent().getId(), eventModel.getEvent().getTransactionId());
+						return false;
+					}
+				}catch (ProofDocumentNotFoundException | ProofTypeNotFoundException e){
+					printLogger.error("Proof document is not available in the received credentials." +
+							" Id: {}, Transaction Id: {}", eventModel.getEvent().getId(), eventModel.getEvent().getTransactionId());
+				}catch (UnknownException | PubicKeyNotFoundException e){
 					printLogger.error("Received Credentials failed in verifiable credential verify method. So, the credentials will not be printed." +
-						" Id: {}, Transaction Id: {}", eventModel.getEvent().getId(), eventModel.getEvent().getTransactionId());
+							" Id: {}, Transaction Id: {}", eventModel.getEvent().getId(), eventModel.getEvent().getTransactionId());
 					return false;
 				}
 			}
